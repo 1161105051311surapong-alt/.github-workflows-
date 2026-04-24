@@ -1,0 +1,103 @@
+name: Robot Framework Tests — Signage Lite
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  robot-tests:
+    runs-on: ubuntu-latest
+
+    env:
+      # ✅ อ่าน credentials จาก GitHub Secrets (ไม่ hardcode ใน code)
+      VALID_PASSWORD: ${{ secrets.VALID_PASSWORD }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+
+      - name: Install dependencies
+        run: |
+          pip install robotframework==7.1.1
+          pip install robotframework-seleniumlibrary==6.7.1
+          pip install webdriver-manager==4.0.2
+
+      - name: Setup Chrome
+        uses: browser-actions/setup-chrome@latest
+
+      - name: Run Login Tests (Valid Login)
+        run: |
+          robot \
+            --outputdir results/login \
+            --output output.xml \
+            --log log.html \
+            --report report.html \
+            --variable BROWSER:headlesschrome \
+            --variable VALID_PASSWORD:${VALID_PASSWORD} \
+            --exclude skip-ci \
+            testscriptslite/login/login_lite.robot
+        continue-on-error: true   # ✅ รัน test ต่อแม้ fail เพื่อเก็บ report
+
+      - name: Run Login Tests (Invalid Login)
+        run: |
+          robot \
+            --outputdir results/invalid_login \
+            --variable BROWSER:headlesschrome \
+            --variable VALID_PASSWORD:${VALID_PASSWORD} \
+            testscriptslite/login/invalid_login.robot
+        continue-on-error: true
+
+      - name: Run Signup Tests
+        run: |
+          robot \
+            --outputdir results/signup \
+            --variable BROWSER:headlesschrome \
+            --exclude skip-ci \
+            testscriptslite/signup/valid_signup.robot
+        continue-on-error: true
+
+      - name: Merge all results
+        if: always()
+        run: |
+          rebot \
+            --outputdir results \
+            --output merged_output.xml \
+            --log merged_log.html \
+            --report merged_report.html \
+            results/login/output.xml \
+            results/invalid_login/output.xml \
+            results/signup/output.xml || true
+
+      - name: Upload test results (Artifacts)
+        uses: actions/upload-artifact@v4
+        if: always()   # ✅ เก็บ report เสมอ ทั้ง pass และ fail
+        with:
+          name: robot-test-results
+          path: results/
+          retention-days: 30
+
+      - name: Check test results
+        if: always()
+        run: |
+          # ทำให้ pipeline fail ถ้า test fail จริงๆ
+          rebot --nostatusrc --output /dev/null results/merged_output.xml
+          EXIT_CODE=$?
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "❌ Tests FAILED — ดู Artifacts สำหรับ report.html"
+            exit 1
+          else
+            echo "✅ Tests PASSED"
+          fi

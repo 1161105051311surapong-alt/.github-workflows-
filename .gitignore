@@ -1,0 +1,25 @@
+# Robot Framework output files — generate ใหม่ได้ทุกครั้ง ไม่ต้อง commit
+results/
+output.xml
+log.html
+report.html
+merged_output.xml
+merged_log.html
+merged_report.html
+
+# Screenshots จาก Selenium — เก็บเฉพาะใน CI Artifacts
+selenium-screenshot-*.png
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.env
+.venv/
+venv/
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+*.swp

@@ -1,0 +1,6 @@
+# Robot Framework Test Dependencies
+# อัปเดต: เมษายน 2026
+
+robotframework==7.1.1
+robotframework-seleniumlibrary==6.7.1
+webdriver-manager==4.0.2
